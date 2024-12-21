@@ -41,16 +41,16 @@ int main( int argc, char** argv )  {
 	
 	if( argc == 3 )	{
 		
-		OP = argv[1];
-		A = argv[2];
+		OP = getstring( argv[1] );
+		A = getstring( argv[2] );
 		B = getstring( "17" );
 	}
 
 	if( argc == 4 )	{
 		
-		OP = argv[1];
-		A = argv[2];
-		B = argv[3];
+		OP = getstring( argv[1] );
+		A = getstring( argv[2] );
+		B = getstring( argv[3] );
 	}
 	
 	
@@ -77,7 +77,7 @@ int main( int argc, char** argv )  {
 	return 0;
 }
 
-char* SUB( char* A, char* B )	{
+char* SUB_old( char* A, char* B )	{
 
 	// SUB Algorithm:
 	// The subtraction of a real number (the subtrahend [B]) from another (the
@@ -110,7 +110,6 @@ char* SUB( char* A, char* B )	{
 		B2 = b;
 	}
 
-	
 	char* _ = ADD( A, B2 );
 	
 	if( flag==1 )
@@ -181,14 +180,15 @@ char* DIV( char* A_, char* B_ )	{
 			freeRef( V );
 		}
 		
-		freeRef( V );
 		
+		if( i<9 )
+			freeRef( V );
 		
 		B_rvalue[0] = '0' + i;		
 		V = MUL( R, B_rvalue );
-		
+		V[0] = '0';
 		R2 = SUB( R, V );
-		
+		R2[0] = '0';
 		freeRef( V );
 		freeRef( R );
 		R = R2;
@@ -241,16 +241,21 @@ char* MUL( char* A_, char* B_ )	{
 	char* A = A_;
 	char* B = B_;
 	
+	short check = 0;
 	if( (A_[0]=='+') || (A_[0]=='-') )	{
 		
 		asign = A_[0];
 		A++;
+		
+		check &= 1;
 	}
 	
 	if( (B_[0]=='+') || (B_[0]=='-') )	{
 	
 		bsign = B_[0];
 		B++;
+		
+		check &= 2;
 	}
 	
 	
@@ -322,7 +327,7 @@ char* MUL( char* A_, char* B_ )	{
 	// now we add all result rows together.
 	if( r%2 != 0 )	{
 			// an odd number of result rows (0-based!).
-		resultRows[ r++ ] = getstring( "0" );
+		resultRows[ r++ ] = getstring( "0\0" );
 	}
 
 	for( y=0; y<r; y+=2 )	{
@@ -384,12 +389,17 @@ char* MUL( char* A_, char* B_ )	{
 		}
 	}
 	
-	char* T_ = galloc( strlen(T) + 2 );
+	char* T_ = (char*) galloc( strlen(T) + 2 );
 	T_[0] = ( (asign==bsign) ? '+' : '-' );
 	
 	strcat( T_,T );
 	freeRef( T );
 	T = T_;
+
+	if( (check & 1) == 1 )
+		A--;
+	if( (check & 2) == 2 )
+		B--;
 	
 	return T;
 }
@@ -399,89 +409,23 @@ char* ADD( char* A_, char* B_ )	{
 	char* A = A_;
 	char* B = B_;
 	char* C;
-	
-	int negb = 1;
-	int nega = 1;
+	unsigned* overflow;
 
 	char sign = '+';
 	
-	if( *A == '-' )	{
-
-		nega = -1;
-	}
-	
-	if( *B == '-' )	{
-	
-		negb = -1;
-	}
-
-	if( nega!=negb )	{
-		
-		if( (A[0]=='+') || (A[0]=='-') )
-			A++;
-		
-		if( (B[0]=='+') || (B[0]=='-') )
-			B++;
-		
-		int cs;
-		if( (cs=cmp_dstr( A,B ))<0 )
-			sign = (negb==-1?'-':'+');
-		else
-			sign = (nega==-1?'-':'+');
-		
-		if( cs<0 )	{
-			
-			// sub the smaller from the larger.
-			char* ttt;
-			ttt = A;
-			A = B;
-			B = ttt;
-		}
-		
-		
-		C = SUB( A,B );
-		
-		switch( C[0] )	{
-			
-			break;
-			case '+':
-			case '-':
-				C[0] = sign;
-				break;
-			
-			break;
-			default:
-				char* D = (char*) galloc( strlen(C)+2 );
-				D[0] = sign;
-				D[1] = '\0';
-				strcat( D,C );
-				freeRef( C );
-				C = D;
-				break;
-		}
-		
-		return C;
-	}
-
-	if( (A[0]=='+') || (A[0]=='-') )
-		A++;
-	
-	if( (B[0]=='+') || (B[0]=='-') )
-		B++;
+	char* temp;
 
 	int lenA = strlen( A );
 	int lenB = strlen( B );
-	
-	sign = (nega==-1)?'-':'+';
 	
 	int lenC = lenA>lenB?lenA:lenB;
 	lenC += 1;
 	
 	C = (char*) g( malloc( lenC + 1 ) );
 	memset( C, '0', lenC );
-	
 
-	
+	overflow = (unsigned*) g( calloc( lenC + 1, 1 ) );
+
 	char a;
 	char b;
 	char c;
@@ -498,68 +442,44 @@ char* ADD( char* A_, char* B_ )	{
 
 		if( x<0 )
 			a = 0;
-		else
+		else	{
+			
 			a = A[ x ] - '0';
-		
+			
+		}
 
 		if( y<0 )
 			b = 0;
-		else
+		else	{
+			
 			b = B[ y ] - '0';
-		
-
-		//b *= negb;
-		a += C[ z ] - '0';
-		
-		loop:
-		
-		//a *= nega;
-		c = a + b;
-		
-		if( c < 0 )	{
-			
-			C[ z-1 ] -= 1;
-			
-			//a *= nega;
-			a += 10;
-			goto loop; //c = a + b;
 		}
+
+		a += overflow[z];
+
+		c = a + b;
 		
 		if( c > 9 )	{
 			
-			C[ z ] = '0' + (c % 10);
+			C[ z ] += (c % 10);
 			
 			while( (c-=10) >= 0 )
-				C[ z-1 ] += 1;
+				overflow[ z-1 ] += 1;
 		}
 		else	{
 			
 			C[ z ] = '0' + c;
 		}
 
-
 		x--;
 		y--;
 		z--;
 	}
 
-	char* temp;
-
-	if( C[ 0 ] < '0' )	{
-	
-		// result is negative.
-		c = '0' - C[ 0 ];
-		C[ 0 ] = '0' + c;
-		
-		//sign = '-';
-	}
-
-	loop2:
-
+/**
 	if( C[ 0 ] > '9' )	{
 		
 		c = C[ 0 ] - '0';
-		// 1. left-extend C
 		
 		temp = (char*) g( malloc( lenC + 2 ) );
 		lenC += 1;
@@ -572,17 +492,16 @@ char* ADD( char* A_, char* B_ )	{
 		temp[z] = '\0';
 		freeRef( C );
 		C = temp;
-		// ...
-		// then...
 		
 		C[ 1 ] = (c % 10) + '0';
 
 		while( (c-=10) >= 0 )
 			C[ 0 ] += 1;
 
-		goto loop2;
 	}
-	
+*/
+
+/*
 	char* t;
 	char* _ = (char*) g( malloc( lenC + 2 ) );
 	_[0] = sign;
@@ -597,9 +516,153 @@ char* ADD( char* A_, char* B_ )	{
 	freeRef( t );
 	
 	return _;
-	
+*/
+
+	return C;
+
 }
 
+char* SUB( char* A_, char* B_ )	{
+	
+	char* A = A_;
+	char* B = B_;
+	char* C;
+	unsigned* overflow;
+	char sign = '+';
+	
+	if( cmp_dstr( A,B )<0 )	{
+	
+		printf( "Change sign, swapping params.\n" );
+		sign = '-';
+		char* t;
+		t = A;
+		A = B;
+		B = t;
+	}
+	
+	char* temp;
+
+	int lenA = strlen( A );
+	int lenB = strlen( B );
+	
+	int lenC = lenA>lenB?lenA:lenB;
+	
+	
+	C = (char*) g( malloc( lenC + 1 ) );
+	memset( C, '0', lenC );
+	overflow = (unsigned*) g( calloc( lenC + 1, sizeof(unsigned) ) );
+	
+
+	signed char a;
+	signed char b;
+	signed char c;
+	
+	int x = lenA - 1;
+	int y = lenB - 1;
+	int z = lenC - 1;
+	
+	while( 1 )	{
+
+		if( z<1 )
+			break;
+
+		if( x<0 )
+			a = 0;
+		else	{
+
+			a = A[ x ] - '0';
+		}
+
+		if( y<0 )
+			b = 0;
+		else	{
+			
+			b = B[ y ] - '0';
+		}
+
+		
+		a -= overflow[z];
+		
+		loop:
+		
+		c = a - b;
+		if( c < 0 )	{
+		
+			a += 10;
+			overflow[ z-1 ] += 1;
+			goto loop;
+		}
+		
+		C[ z ] = '0' + c;
+
+
+		x--;
+		y--;
+		z--;
+	}
+
+	char d;
+	if (lenB>lenA )
+		d = B[0];
+	else if( lenA>lenB )
+		d = A[0];
+	else
+		d = '0';
+	
+	C[0] = d;
+	
+	if( overflow[0] > 0 )	{
+		
+		C[0] -= (char) overflow[z];	
+	}
+	
+/**
+	if( C[ 0 ] > '9' )	{
+		
+		c = C[ 0 ] - '0';
+		
+		temp = (char*) g( malloc( lenC + 2 ) );
+		lenC += 1;
+		
+		temp[0] = '0';
+		z = 1;
+		while( *C != '\0' )
+			temp[z++] = *(C++);
+
+		temp[z] = '\0';
+		freeRef( C );
+		C = temp;
+		
+		C[ 1 ] = (c % 10) + '0';
+
+		while( (c-=10) >= 0 )
+			C[ 0 ] += 1;
+
+	}
+*/
+
+	if( sign=='-' )	{
+		
+		char* t;
+		char* _ = (char*) g( malloc( lenC + 2 ) );
+		_[0] = sign;
+		
+		t = C;
+		z = 1;
+		while( *t != '\0' )
+			_[z++] = *(t++);
+		
+		_[z] = '\0';
+		
+		
+		freeRef( C );
+		C = _;
+	}
+
+
+	return C;
+
+}
 
 char* getstring( char* _ )	{
 
@@ -627,8 +690,9 @@ int cmp_dstr( char* a, char* b )	{
 	
 	fflush( stdout );
 	
-	int i = 0;
-	
+	int i;
+
+	i = 0;
 	while( a[i++]=='0' )
 		++a;
 	
