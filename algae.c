@@ -77,49 +77,6 @@ int main( int argc, char** argv )  {
 	return 0;
 }
 
-char* SUB_old( char* A, char* B )	{
-
-	// SUB Algorithm:
-	// The subtraction of a real number (the subtrahend [B]) from another (the
-	// minuend [A]) can be defined as the addition of the minuend [A] and the
-	// additive inverse of the subtrahend [B].
-	
-	
-	char* B2;
-	int flag = 2;
-	//flipSign(B);
-	if( B[0]=='+' )	{
-		
-		B[0] = '-';
-		flag = 1;
-		B2 = B;
-	}
-	else if( B[0] == '-' )	{
-
-		B[0] = '+';
-		flag = 0;
-		B2 = B;
-	}
-
-	if( flag==2 )	{
-	
-		char* b = (char*) g( malloc( strlen(B) + 2 ) );
-		b[0] = '-';
-		strcat( b,B );
-		
-		B2 = b;
-	}
-
-	char* _ = ADD( A, B2 );
-	
-	if( flag==1 )
-		B[0] = '+';
-	else if( flag==0 )
-		B[0] = '-';
-
-	return _;
-}
- 
 char* DIV( char* A_, char* B_ )	{
 	
 	char* A = A_;
@@ -716,5 +673,76 @@ int cmp_dstr( char* a, char* b )	{
 			return -1;
 	
 	return 0;	
+}
+
+// assumes an unpacked string of 1 char per decimal digit.
+char* pack( char* _ ) {
+	
+	L strlen__ = strlen( _ );
+
+	char* _P = (char*)calloc( 1, (strlen__>>1) + 2 );
+	char t;
+	
+	L i,j;
+	for( i=0,j=0; i<strlen__-1; i+=2, j++ )	{
+		
+		t = _[i] - '0';
+		if( t==0 )
+			t=10;
+		
+		char nd = (_[i+1] - '0');
+		if( nd==0 )
+			nd=10;
+		
+		t += ( nd << 4 );
+		
+		_P[j] = t;		
+	}
+
+	if( i==strlen__-1 )	{
+
+	t = _[i] - '0';
+	if( t==0 )
+		t=10;
+	
+	_P[j++] = t;
+	
+	}
+	_P[j] = '\0';
+	return _P;
+}
+
+// assumes a packed-digit string of 4 bits/digit.
+char* unpack( char* _ ) {
+	
+	L strlen__ = strlen( _ );
+
+	int BITMASK_LOWER = 15;		// 00001111 (8+4+2+1)
+	int BITMASK_UPPER = 255-15; // 11110000 (128+64+32+16)
+	char t;
+	
+	L i, j;
+	char* _U = (char*)calloc( 1, (2<<strlen__) + 1 );
+	for( i=0, j=0; i<strlen__; i++ ) {
+		
+		t = _[i] & BITMASK_LOWER;
+		if( t==10 )	t=0;
+		
+		_U[j++] = t + '0';
+		
+		t = (_[i] & BITMASK_UPPER)>>4;
+		if( t==0 )
+			_U[j++] = '\0';
+		else if( t==10 )
+			_U[j++] = '0';
+		else
+			_U[j++] = t + '0';
+
+	}
+
+	if( _U[j-1]!='\0' )
+		_U[j] = '\0';
+
+	return _U;
 }
 

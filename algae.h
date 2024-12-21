@@ -11,5 +11,8 @@ char* ADD( char*, char* );
 char* SUB( char*, char* );
 char* DIV( char*, char* );
 
+char* pack( char* );
+char* unpack( char* );
+
 #endif
 
